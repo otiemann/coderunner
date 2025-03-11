@@ -1,0 +1,174 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<quiz>
+<!-- question: 15193  -->
+  <question type="coderunner">
+    <name>
+      <text>PROTOTYPE_sql_improved_precheck</text>
+    </name>
+    <questiontext format="html">
+      <text><![CDATA[<p>Dieser Prototype stellt eine verbesserte Version des SQL-Prototypes dar und implementiert ein didaktisch sinnvolles Feedback bei Laufzeitfehlern sowie die Möglichkeit eines Prechecks.</p>]]></text>
+    </questiontext>
+    <generalfeedback format="html">
+      <text></text>
+    </generalfeedback>
+    <defaultgrade>10</defaultgrade>
+    <penalty>0</penalty>
+    <hidden>0</hidden>
+    <idnumber></idnumber>
+    <coderunnertype>sql_improved_precheck</coderunnertype>
+    <prototypetype>2</prototypetype>
+    <allornothing>1</allornothing>
+    <penaltyregime>0, 10, 20, ...</penaltyregime>
+    <precheck>1</precheck>
+    <hidecheck>0</hidecheck>
+    <showsource>0</showsource>
+    <answerboxlines>18</answerboxlines>
+    <answerboxcolumns>100</answerboxcolumns>
+    <answerpreload></answerpreload>
+    <globalextra></globalextra>
+    <useace>1</useace>
+    <resultcolumns></resultcolumns>
+    <template><![CDATA[import subprocess, os, shutil
+import re
+import sys
+
+# Use Twig to get students answer and the columnwidth template parameter
+student_answer = """{{ STUDENT_ANSWER | e('py') }}""".rstrip()
+column_widths = []
+{% for width in QUESTION.parameters.columnwidths %}
+column_widths.append({{ width }})
+{% endfor %}
+
+# Check if this is a precheck run
+is_precheck = {% if IS_PRECHECK %}True{% else %}False{% endif %}
+
+if not student_answer.endswith(';'):
+    student_answer = student_answer + ';'
+db_files = [fname for fname in os.listdir() if fname.endswith('.db')]
+if len(db_files) == 0:
+    raise Exception("No DB files found!")
+elif len(db_files) == 1:
+    db_working = db_files[0][:-3]  # Strip .db extension
+else:
+    raise Exception("Multiple DB files not implemented yet, sorry!")
+SEPARATOR = "#<ab@17943918#@>#"
+controls = [".mode column", ".headers on"]
+if column_widths:  # Add column width specifiers if given
+    controls.append(".width " + ' '.join(str(width) for width in column_widths))
+prelude = '\n'.join(controls) + '\n'
+
+if is_precheck:
+    # For precheck with Empty option, check if there are any errors
+    any_error = False
+    error_message = ""
+    
+    # Process all tests silently for precheck
+{% for TEST in TESTCASES %}
+    shutil.copyfile(db_files[0], db_working)
+    testcode = """{{ TEST.testcode | e('py') }}"""
+    extra = """{{ TEST.extra | e('py') }}"""
+    code_to_run = '\n'.join([prelude, extra, student_answer, testcode])
+    with open('commands', 'w') as sqlite_commands:
+        sqlite_commands.write(code_to_run)
+    with open('commands') as cmd_input:
+        text_input = cmd_input.read()
+        try:
+            result = subprocess.run(
+                ['sqlite3', db_working],
+                input=text_input,
+                universal_newlines=True,
+                capture_output=True
+            )
+            if result.returncode != 0:
+                any_error = True
+                output_combined = (result.stdout or "") + (result.stderr or "")
+                lines = output_combined.strip().splitlines()
+                if lines:
+                    for line in lines:
+                        line = re.sub(r'near line \d+: in prepare, ?', '', line)
+                        line = re.sub(r'near line \d+: ?', '', line)
+                        line = re.sub(r'\(\d+\)', '', line)
+                        
+                else:
+                    error_message = "Es ist ein unbekannter Fehler aufgetreten."
+        except Exception as e:
+            any_error = True
+            error_message = f"sqlite3 error: {str(e)}"
+{% endfor %}
+    
+    # For "Empty" precheck option, output nothing for success
+    # Only output error message if there was an error
+    if any_error:
+        print("Fehler bei der Ausführung: Es ist ein Laufzeitfehler aufgetreten.")
+        print(error_message)
+else:
+    # Regular execution (not precheck)
+{% for TEST in TESTCASES %}
+    shutil.copyfile(db_files[0], db_working)
+    testcode = """{{ TEST.testcode | e('py') }}"""
+    extra = """{{ TEST.extra | e('py') }}"""
+    code_to_run = '\n'.join([prelude, extra, student_answer, testcode])
+    with open('commands', 'w') as sqlite_commands:
+        sqlite_commands.write(code_to_run)
+    with open('commands') as cmd_input:
+        text_input = cmd_input.read()
+        try:
+            result = subprocess.run(
+                ['sqlite3', db_working],
+                input=text_input,
+                universal_newlines=True,
+                capture_output=True
+            )
+            output_combined = (result.stdout or "") + (result.stderr or "")
+            if result.returncode != 0:
+                lines = output_combined.strip().splitlines()
+                if lines:
+                    print("Fehler bei der Ausführung:")
+                    for line in lines:
+                        line = re.sub(r'near line \d+: in prepare, ?', '', line)
+                        line = re.sub(r'near line \d+: ?', '', line)
+                        line = re.sub(r'\(\d+\)', '', line)
+                        if line.strip():
+                            print(f"  - {line}")
+                else:
+                    print("Es ist ein unbekannter Fehler aufgetreten.")
+            else:
+                print(output_combined)
+        except Exception as e:
+            raise Exception("sqlite3 error: " + str(e))
+{% if not loop.last %}
+    print(SEPARATOR)
+{% endif %}
+{% endfor %}]]></template>
+    <iscombinatortemplate>1</iscombinatortemplate>
+    <allowmultiplestdins>0</allowmultiplestdins>
+    <answer></answer>
+    <validateonsave>0</validateonsave>
+    <testsplitterre><![CDATA[|#<ab@17943918#@>#\n|ms]]></testsplitterre>
+    <language>python3</language>
+    <acelang>sql</acelang>
+    <sandbox></sandbox>
+    <grader>EqualityGrader</grader>
+    <cputimelimitsecs></cputimelimitsecs>
+    <memlimitmb>500</memlimitmb>
+    <sandboxparams></sandboxparams>
+    <templateparams></templateparams>
+    <hoisttemplateparams>1</hoisttemplateparams>
+    <extractcodefromjson>1</extractcodefromjson>
+    <templateparamslang>None</templateparamslang>
+    <templateparamsevalpertry>0</templateparamsevalpertry>
+    <templateparamsevald>{}</templateparamsevald>
+    <twigall>0</twigall>
+    <uiplugin>ace</uiplugin>
+    <uiparameters></uiparameters>
+    <attachments>0</attachments>
+    <attachmentsrequired>0</attachmentsrequired>
+    <maxfilesize>10240</maxfilesize>
+    <filenamesregex></filenamesregex>
+    <filenamesexplain></filenamesexplain>
+    <displayfeedback>1</displayfeedback>
+    <giveupallowed>0</giveupallowed>
+    <prototypeextra></prototypeextra>
+  </question>
+
+</quiz>
