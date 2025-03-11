@@ -33,11 +33,3 @@ Der Prototyp basiert auf dem Standard-SQL-Prototyp des CodeRunner-Plugins, enth�
 2. Gehen Sie in Moodle zur Fragenbank
 3. Wählen Sie "Importieren" und laden Sie die XML-Datei hoch
 4. Stellen Sie sicher, dass das Format auf "Moodle XML Format" eingestellt ist
-
-## Lizenz
-
-[Fügen Sie hier Ihre Lizenzinformationen ein]
-
-## Kontakt
-
-[Fügen Sie hier Ihre Kontaktinformationen ein] 
